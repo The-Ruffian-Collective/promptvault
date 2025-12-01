@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Library</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0a0a0a;
+            --surface: #1a1a1a;
+            --surface-hover: #252525;
+            --border: #333;
+            --text: #e8e8e8;
+            --text-dim: #888;
+            --accent: #00ff88;
+            --accent-dim: #00cc6a;
+            --danger: #ff4444;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: start;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        input[type="text"], select, textarea {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text);
+            font-size: 0.95rem;
+            transition: all 0.2s;
+        }
+
+        input[type="text"]:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        button {
+            padding: 0.75rem 1.5rem;
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover {
+            background: var(--accent-dim);
+            transform: translateY(-1px);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: var(--surface);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button.secondary:hover {
+            background: var(--surface-hover);
+        }
+
+        button.danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+        }
+
+        .tag-filter {
+            padding: 0.4rem 0.9rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tag-filter:hover {
+            border-color: var(--accent);
+        }
+
+        .tag-filter.active {
+            background: var(--accent);
+            color: var(--bg);
+            border-color: var(--accent);
+        }
+
+        .prompts-grid {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .prompt-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .prompt-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        .prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 0.75rem;
+        }
+
+        .prompt-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .prompt-meta {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+        }
+
+        .prompt-description {
+            color: var(--text-dim);
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .prompt-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 0.25rem 0.7rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 15px;
+            font-size: 0.75rem;
+            color: var(--accent);
+        }
+
+        .prompt-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .icon-btn {
+            padding: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+        }
+
+        .icon-btn:hover {
+            background: var(--surface-hover);
+            border-color: var(--accent);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            font-size: 1.5rem;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 2rem;
+            height: 2rem;
+        }
+
+        .close-btn:hover {
+            color: var(--text);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        textarea {
+            min-height: 150px;
+            resize: vertical;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+
+        .tag-input-wrapper {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .tag-input-wrapper input {
+            flex: 1;
+        }
+
+        .current-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: 0.5rem;
+        }
+
+        .removable-tag {
+            padding: 0.25rem 0.7rem;
+            background: var(--accent);
+            color: var(--bg);
+            border-radius: 15px;
+            font-size: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .removable-tag button {
+            background: none;
+            border: none;
+            color: var(--bg);
+            cursor: pointer;
+            padding: 0;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-dim);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text);
+        }
+
+        .stats {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .prompt-body-preview {
+            background: var(--bg);
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow: hidden;
+            position: relative;
+            margin-top: 0.75rem;
+        }
+
+        .prompt-body-preview::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: linear-gradient(transparent, var(--bg));
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--accent);
+            color: var(--bg);
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            transform: translateY(200%);
+            transition: transform 0.3s;
+            z-index: 2000;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Prompt Library</h1>
+        <p class="subtitle">Store, organize, and retrieve your prompts</p>
+    </header>
+
+    <div class="controls">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="Search prompts...">
+        </div>
+        <select id="categoryFilter">
+            <option value="">All Categories</option>
+            <option value="work">Work</option>
+            <option value="creative">Creative</option>
+            <option value="technical">Technical</option>
+            <option value="social">Social Media</option>
+            <option value="other">Other</option>
+        </select>
+        <button onclick="openAddModal()">+ Add Prompt</button>
+    </div>
+
+    <div class="filters" id="tagFilters"></div>
+
+    <div class="stats">
+        <span id="totalCount">0 prompts</span>
+        <span id="filteredCount"></span>
+    </div>
+
+    <div class="prompts-grid" id="promptsGrid"></div>
+
+    <div class="modal" id="promptModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add Prompt</h2>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <form id="promptForm" onsubmit="savePrompt(event)">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="promptTitle" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <input type="text" id="promptDescription">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="promptCategory" required>
+                        <option value="work">Work</option>
+                        <option value="creative">Creative</option>
+                        <option value="technical">Technical</option>
+                        <option value="social">Social Media</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Prompt</label>
+                    <textarea id="promptBody" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Tags</label>
+                    <div class="tag-input-wrapper">
+                        <input type="text" id="tagInput" placeholder="Add tag...">
+                        <button type="button" class="secondary" onclick="addTag()">Add</button>
+                    </div>
+                    <div class="current-tags" id="currentTags"></div>
+                </div>
+                <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+                    <button type="button" class="secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" id="saveBtn">Save Prompt</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal" id="viewModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="viewTitle"></h2>
+                <button class="close-btn" onclick="closeViewModal()">×</button>
+            </div>
+            <div id="viewContent"></div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // Supabase configuration - REPLACE WITH YOUR VALUES
+        const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+        const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+        
+        let supabase;
+        let prompts = [];
+        let currentTags = [];
+        let editingId = null;
+        let activeTagFilters = new Set();
+
+        // Initialize
+        async function init() {
+            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                showNotification('⚠️ Configure Supabase credentials first');
+                return;
+            }
+            
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            await loadPrompts();
+        }
+
+        // Load prompts from Supabase
+        async function loadPrompts() {
+            try {
+                const { data, error } = await supabase
+                    .from('prompts')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+                
+                prompts = data || [];
+                renderPrompts();
+                updateTagFilters();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading prompts:', error);
+                showNotification('Error loading prompts');
+            }
+        }
+
+        // Render prompts
+        function renderPrompts() {
+            const grid = document.getElementById('promptsGrid');
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+
+            let filtered = prompts.filter(p => {
+                const matchesSearch = !searchTerm || 
+                    p.title.toLowerCase().includes(searchTerm) ||
+                    p.description?.toLowerCase().includes(searchTerm) ||
+                    p.body.toLowerCase().includes(searchTerm);
+                
+                const matchesCategory = !categoryFilter || p.category === categoryFilter;
+                
+                const matchesTags = activeTagFilters.size === 0 || 
+                    (p.tags && p.tags.some(tag => activeTagFilters.has(tag)));
+                
+                return matchesSearch && matchesCategory && matchesTags;
+            });
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No prompts found</h3>
+                        <p>Try adjusting your filters or add a new prompt</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(p => `
+                <div class="prompt-card" onclick="viewPrompt('${p.id}')">
+                    <div class="prompt-header">
+                        <div style="flex: 1;">
+                            <div class="prompt-title">${escapeHtml(p.title)}</div>
+                            <div class="prompt-meta">
+                                <span>${p.category}</span>
+                                <span>${new Date(p.created_at).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+                        <div class="prompt-actions" onclick="event.stopPropagation()">
+                            <button class="icon-btn" onclick="copyPrompt('${p.id}')" title="Copy">📋</button>
+                            <button class="icon-btn" onclick="editPrompt('${p.id}')" title="Edit">✏️</button>
+                            <button class="icon-btn" onclick="deletePrompt('${p.id}')" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                    ${p.description ? `<div class="prompt-description">${escapeHtml(p.description)}</div>` : ''}
+                    ${p.tags && p.tags.length > 0 ? `
+                        <div class="prompt-tags">
+                            ${p.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                    <div class="prompt-body-preview">${escapeHtml(p.body.substring(0, 200))}</div>
+                </div>
+            `).join('');
+
+            updateStats(filtered.length);
+        }
+
+        // Update tag filters
+        function updateTagFilters() {
+            const allTags = new Set();
+            prompts.forEach(p => {
+                if (p.tags) p.tags.forEach(tag => allTags.add(tag));
+            });
+
+            const container = document.getElementById('tagFilters');
+            container.innerHTML = Array.from(allTags).map(tag => `
+                <button class="tag-filter ${activeTagFilters.has(tag) ? 'active' : ''}" 
+                        onclick="toggleTagFilter('${escapeHtml(tag)}')">
+                    ${escapeHtml(tag)}
+                </button>
+            `).join('');
+        }
+
+        // Toggle tag filter
+        function toggleTagFilter(tag) {
+            if (activeTagFilters.has(tag)) {
+                activeTagFilters.delete(tag);
+            } else {
+                activeTagFilters.add(tag);
+            }
+            renderPrompts();
+            updateTagFilters();
+        }
+
+        // Update stats
+        function updateStats(filteredCount) {
+            document.getElementById('totalCount').textContent = `${prompts.length} prompt${prompts.length !== 1 ? 's' : ''}`;
+            const filtered = document.getElementById('filteredCount');
+            if (filteredCount !== undefined && filteredCount !== prompts.length) {
+                filtered.textContent = `(${filteredCount} shown)`;
+            } else {
+                filtered.textContent = '';
+            }
+        }
+
+        // Modal functions
+        function openAddModal() {
+            editingId = null;
+            currentTags = [];
+            document.getElementById('modalTitle').textContent = 'Add Prompt';
+            document.getElementById('promptForm').reset();
+            document.getElementById('currentTags').innerHTML = '';
+            document.getElementById('promptModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('promptModal').classList.remove('active');
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.remove('active');
+        }
+
+        // View prompt
+        function viewPrompt(id) {
+            const prompt = prompts.find(p => p.id === id);
+            if (!prompt) return;
+
+            document.getElementById('viewTitle').textContent = prompt.title;
+            document.getElementById('viewContent').innerHTML = `
+                <div class="prompt-meta" style="margin-bottom: 1rem;">
+                    <span>${prompt.category}</span>
+                    <span>${new Date(prompt.created_at).toLocaleDateString()}</span>
+                </div>
+                ${prompt.description ? `<p style="margin-bottom: 1rem; color: var(--text-dim);">${escapeHtml(prompt.description)}</p>` : ''}
+                ${prompt.tags && prompt.tags.length > 0 ? `
+                    <div class="prompt-tags" style="margin-bottom: 1rem;">
+                        ${prompt.tags.map(tag => `<span class="tag">${escapeHtml(tag)}</span>`).join('')}
+                    </div>
+                ` : ''}
+                <div style="background: var(--bg); padding: 1rem; border-radius: 6px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.9rem; white-space: pre-wrap; max-height: 60vh; overflow-y: auto;">${escapeHtml(prompt.body)}</div>
+                <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button class="secondary" onclick="copyPrompt('${prompt.id}')">📋 Copy</button>
+                    <button class="secondary" onclick="editPrompt('${prompt.id}'); closeViewModal();">✏️ Edit</button>
+                </div>
+            `;
+            document.getElementById('viewModal').classList.add('active');
+        }
+
+        // Tag management
+        function addTag() {
+            const input = document.getElementById('tagInput');
+            const tag = input.value.trim().toLowerCase();
+            
+            if (tag && !currentTags.includes(tag)) {
+                currentTags.push(tag);
+                renderCurrentTags();
+                input.value = '';
+            }
+        }
+
+        function removeTag(tag) {
+            currentTags = currentTags.filter(t => t !== tag);
+            renderCurrentTags();
+        }
+
+        function renderCurrentTags() {
+            const container = document.getElementById('currentTags');
+            container.innerHTML = currentTags.map(tag => `
+                <span class="removable-tag">
+                    ${escapeHtml(tag)}
+                    <button onclick="removeTag('${escapeHtml(tag)}')">×</button>
+                </span>
+            `).join('');
+        }
+
+        // Save prompt
+        async function savePrompt(event) {
+            event.preventDefault();
+            
+            const promptData = {
+                title: document.getElementById('promptTitle').value,
+                description: document.getElementById('promptDescription').value,
+                category: document.getElementById('promptCategory').value,
+                body: document.getElementById('promptBody').value,
+                tags: currentTags
+            };
+
+            try {
+                if (editingId) {
+                    const { error } = await supabase
+                        .from('prompts')
+                        .update(promptData)
+                        .eq('id', editingId);
+                    
+                    if (error) throw error;
+                    showNotification('Prompt updated');
+                } else {
+                    const { error } = await supabase
+                        .from('prompts')
+                        .insert([promptData]);
+                    
+                    if (error) throw error;
+                    showNotification('Prompt added');
+                }
+
+                closeModal();
+                await loadPrompts();
+            } catch (error) {
+                console.error('Error saving prompt:', error);
+                showNotification('Error saving prompt');
+            }
+        }
+
+        // Edit prompt
+        function editPrompt(id) {
+            const prompt = prompts.find(p => p.id === id);
+            if (!prompt) return;
+
+            editingId = id;
+            currentTags = prompt.tags || [];
+            
+            document.getElementById('modalTitle').textContent = 'Edit Prompt';
+            document.getElementById('promptTitle').value = prompt.title;
+            document.getElementById('promptDescription').value = prompt.description || '';
+            document.getElementById('promptCategory').value = prompt.category;
+            document.getElementById('promptBody').value = prompt.body;
+            
+            renderCurrentTags();
+            document.getElementById('promptModal').classList.add('active');
+        }
+
+        // Delete prompt
+        async function deletePrompt(id) {
+            if (!confirm('Delete this prompt?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('prompts')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+                
+                showNotification('Prompt deleted');
+                await loadPrompts();
+            } catch (error) {
+                console.error('Error deleting prompt:', error);
+                showNotification('Error deleting prompt');
+            }
+        }
+
+        // Copy prompt
+        function copyPrompt(id) {
+            const prompt = prompts.find(p => p.id === id);
+            if (!prompt) return;
+
+            navigator.clipboard.writeText(prompt.body).then(() => {
+                showNotification('Copied to clipboard');
+            });
+        }
+
+        // Notification
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Utility
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Event listeners
+        document.getElementById('searchInput').addEventListener('input', renderPrompts);
+        document.getElementById('categoryFilter').addEventListener('change', renderPrompts);
+        document.getElementById('tagInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag();
+            }
+        });
+
+        // Close modals on background click
+        document.getElementById('promptModal').addEventListener('click', (e) => {
+            if (e.target.id === 'promptModal') closeModal();
+        });
+        document.getElementById('viewModal').addEventListener('click', (e) => {
+            if (e.target.id === 'viewModal') closeViewModal();
+        });
+
+        // Initialize app
+        init();
+    </script>
+</body>
+</html>
