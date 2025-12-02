@@ -63,6 +63,24 @@
             padding-bottom: var(--sp-xl);
         }
 
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: var(--sp-md);
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .user-email {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .auth-btn {
+            padding: var(--sp-sm) var(--sp-lg);
+            font-size: 0.875rem;
+        }
+
         h1 {
             font-size: 2.75rem;
             font-weight: 800;
@@ -610,6 +628,11 @@
                 padding: var(--sp-xl);
             }
 
+            header > div {
+                flex-direction: column;
+                gap: var(--sp-lg);
+            }
+
             h1 {
                 font-size: 2rem;
             }
@@ -693,8 +716,15 @@
 </head>
 <body>
     <header>
-        <h1>Prompt Vault</h1>
-        <p class="subtitle">A structured way to collect, manage, and apply your best prompts</p>
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h1>Prompt Vault</h1>
+                <p class="subtitle">A structured way to collect, manage, and apply your best prompts</p>
+            </div>
+            <div id="authStatus" style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
+                <!-- Auth UI will be injected here -->
+            </div>
+        </div>
     </header>
 
     <div class="controls">
@@ -776,6 +806,32 @@
         </div>
     </div>
 
+    <div class="modal" id="authModal">
+        <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+                <h2 id="authModalTitle">Login</h2>
+                <button class="close-btn" onclick="closeAuthModal()">×</button>
+            </div>
+            <form id="authForm" onsubmit="handleAuth(event)">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="authEmail" required autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="authPassword" required autocomplete="current-password" minlength="6">
+                </div>
+                <div id="authError" style="color: var(--danger); font-size: 0.875rem; margin-bottom: 1rem; display: none;"></div>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <button type="submit" id="authSubmitBtn">Login</button>
+                    <button type="button" class="secondary" onclick="toggleAuthMode()">
+                        <span id="authToggleText">Need an account? Sign up</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="notification" id="notification"></div>
 
     <script>
@@ -788,6 +844,8 @@
         let currentTags = [];
         let editingId = null;
         let activeTagFilters = new Set();
+        let currentUser = null;
+        let authMode = 'login'; // 'login' or 'signup'
 
         // Initialize
         async function init() {
@@ -795,9 +853,166 @@
                 showNotification('⚠️ Configure Supabase credentials first');
                 return;
             }
-            
+
             supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-            await loadPrompts();
+
+            // Check for existing session
+            await checkAuth();
+
+            // Listen for auth state changes
+            supabase.auth.onAuthStateChange((event, session) => {
+                currentUser = session?.user || null;
+                updateAuthUI();
+                if (currentUser) {
+                    loadPrompts();
+                } else {
+                    prompts = [];
+                    renderPrompts();
+                }
+            });
+        }
+
+        // Auth Functions
+        async function checkAuth() {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                currentUser = session?.user || null;
+                updateAuthUI();
+
+                if (currentUser) {
+                    await loadPrompts();
+                } else {
+                    // Show login modal if not authenticated
+                    openAuthModal();
+                }
+            } catch (error) {
+                console.error('Error checking auth:', error);
+                openAuthModal();
+            }
+        }
+
+        function updateAuthUI() {
+            const authStatus = document.getElementById('authStatus');
+            const controls = document.querySelector('.controls');
+            const filters = document.getElementById('tagFilters');
+            const stats = document.querySelector('.stats');
+
+            if (currentUser) {
+                authStatus.innerHTML = `
+                    <div class="user-info">
+                        <span class="user-email">${escapeHtml(currentUser.email)}</span>
+                        <button class="secondary auth-btn" onclick="signOut()">Logout</button>
+                    </div>
+                `;
+                // Show app controls
+                controls.style.display = 'grid';
+                filters.style.display = 'flex';
+                stats.style.display = 'flex';
+            } else {
+                authStatus.innerHTML = `
+                    <button class="auth-btn" onclick="openAuthModal()">Login</button>
+                `;
+                // Hide app controls when not authenticated
+                controls.style.display = 'none';
+                filters.style.display = 'none';
+                stats.style.display = 'none';
+            }
+        }
+
+        function openAuthModal() {
+            authMode = 'login';
+            document.getElementById('authModalTitle').textContent = 'Login';
+            document.getElementById('authSubmitBtn').textContent = 'Login';
+            document.getElementById('authToggleText').textContent = 'Need an account? Sign up';
+            document.getElementById('authForm').reset();
+            document.getElementById('authError').style.display = 'none';
+            document.getElementById('authModal').classList.add('active');
+        }
+
+        function closeAuthModal() {
+            // Only allow closing if user is authenticated
+            if (currentUser) {
+                document.getElementById('authModal').classList.remove('active');
+            }
+        }
+
+        function toggleAuthMode() {
+            authMode = authMode === 'login' ? 'signup' : 'login';
+
+            if (authMode === 'signup') {
+                document.getElementById('authModalTitle').textContent = 'Sign Up';
+                document.getElementById('authSubmitBtn').textContent = 'Sign Up';
+                document.getElementById('authToggleText').textContent = 'Already have an account? Login';
+            } else {
+                document.getElementById('authModalTitle').textContent = 'Login';
+                document.getElementById('authSubmitBtn').textContent = 'Login';
+                document.getElementById('authToggleText').textContent = 'Need an account? Sign up';
+            }
+
+            document.getElementById('authError').style.display = 'none';
+        }
+
+        async function handleAuth(event) {
+            event.preventDefault();
+
+            const email = document.getElementById('authEmail').value;
+            const password = document.getElementById('authPassword').value;
+            const errorDiv = document.getElementById('authError');
+            const submitBtn = document.getElementById('authSubmitBtn');
+
+            errorDiv.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = authMode === 'login' ? 'Logging in...' : 'Signing up...';
+
+            try {
+                if (authMode === 'signup') {
+                    const { data, error } = await supabase.auth.signUp({
+                        email,
+                        password
+                    });
+
+                    if (error) throw error;
+
+                    // Check if email confirmation is required
+                    if (data?.user && !data?.session) {
+                        showNotification('Check your email to confirm your account');
+                        closeAuthModal();
+                    } else {
+                        showNotification('Account created successfully!');
+                        closeAuthModal();
+                    }
+                } else {
+                    const { data, error } = await supabase.auth.signInWithPassword({
+                        email,
+                        password
+                    });
+
+                    if (error) throw error;
+
+                    showNotification('Welcome back!');
+                    closeAuthModal();
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                errorDiv.textContent = error.message || 'An error occurred. Please try again.';
+                errorDiv.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = authMode === 'login' ? 'Login' : 'Sign Up';
+            }
+        }
+
+        async function signOut() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+
+                showNotification('Logged out successfully');
+                openAuthModal();
+            } catch (error) {
+                console.error('Error signing out:', error);
+                showNotification('Error signing out');
+            }
         }
 
         // Load prompts from Supabase
@@ -991,13 +1206,19 @@
         // Save prompt
         async function savePrompt(event) {
             event.preventDefault();
-            
+
+            if (!currentUser) {
+                showNotification('Please login to save prompts');
+                return;
+            }
+
             const promptData = {
                 title: document.getElementById('promptTitle').value,
                 description: document.getElementById('promptDescription').value,
                 category: document.getElementById('promptCategory').value,
                 body: document.getElementById('promptBody').value,
-                tags: currentTags
+                tags: currentTags,
+                user_id: currentUser.id
             };
 
             try {
@@ -1107,6 +1328,9 @@
         });
         document.getElementById('viewModal').addEventListener('click', (e) => {
             if (e.target.id === 'viewModal') closeViewModal();
+        });
+        document.getElementById('authModal').addEventListener('click', (e) => {
+            if (e.target.id === 'authModal' && currentUser) closeAuthModal();
         });
 
         // Initialize app
