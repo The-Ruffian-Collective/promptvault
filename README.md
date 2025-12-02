@@ -1,6 +1,6 @@
 # Prompt Vault
 
-Your secure library for AI prompts that matter.
+A structured way to collect, manage, and apply your best prompts.
 
 Prompt Vault is a modern, single-page web application for storing, organizing, and retrieving AI prompts. Built with vanilla JavaScript and Supabase, it provides a lightweight yet powerful solution for managing your prompt collection.
 
