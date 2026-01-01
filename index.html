@@ -722,7 +722,7 @@
                 <p class="subtitle">A structured way to collect, manage, and apply your best prompts</p>
             </div>
             <div id="authStatus" style="display: flex; align-items: center; gap: 1rem; margin-top: 0.5rem;">
-                <!-- Auth UI will be injected here -->
+                <span style="color: var(--text-secondary); font-size: 0.875rem;">Loading...</span>
             </div>
         </div>
     </header>
@@ -849,27 +849,41 @@
 
         // Initialize
         async function init() {
-            if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-                showNotification('⚠️ Configure Supabase credentials first');
-                return;
-            }
-
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-            // Check for existing session
-            await checkAuth();
-
-            // Listen for auth state changes
-            supabase.auth.onAuthStateChange((event, session) => {
-                currentUser = session?.user || null;
-                updateAuthUI();
-                if (currentUser) {
-                    loadPrompts();
-                } else {
-                    prompts = [];
-                    renderPrompts();
+            try {
+                if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+                    showNotification('⚠️ Configure Supabase credentials first');
+                    return;
                 }
-            });
+
+                // Check if Supabase SDK loaded
+                if (!window.supabase) {
+                    console.error('Supabase SDK failed to load');
+                    showNotification('⚠️ Failed to load authentication system. Please refresh the page.');
+                    return;
+                }
+
+                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+                // Check for existing session
+                await checkAuth();
+
+                // Listen for auth state changes
+                supabase.auth.onAuthStateChange((event, session) => {
+                    currentUser = session?.user || null;
+                    updateAuthUI();
+                    if (currentUser) {
+                        loadPrompts();
+                    } else {
+                        prompts = [];
+                        renderPrompts();
+                    }
+                });
+            } catch (error) {
+                console.error('Initialization error:', error);
+                showNotification('⚠️ App initialization failed. Check console for details.');
+                // Show auth modal anyway
+                openAuthModal();
+            }
         }
 
         // Auth Functions
