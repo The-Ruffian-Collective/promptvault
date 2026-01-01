@@ -839,7 +839,7 @@
         const SUPABASE_URL = 'https://xjbhbseqrpgyfltmmdil.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhqYmhic2VxcnBneWZsdG1tZGlsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ1MTQ5MDQsImV4cCI6MjA4MDA5MDkwNH0.DGQyjfXFM_L2kop3qpSpRDkrQ9ryz5BKSCJq5aTETe8';
         
-        let supabase;
+        let supabaseClient;
         let prompts = [];
         let currentTags = [];
         let editingId = null;
@@ -862,13 +862,13 @@
                     return;
                 }
 
-                supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
                 // Check for existing session
                 await checkAuth();
 
                 // Listen for auth state changes
-                supabase.auth.onAuthStateChange((event, session) => {
+                supabaseClient.auth.onAuthStateChange((event, session) => {
                     currentUser = session?.user || null;
                     updateAuthUI();
                     if (currentUser) {
@@ -889,7 +889,7 @@
         // Auth Functions
         async function checkAuth() {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 currentUser = session?.user || null;
                 updateAuthUI();
 
@@ -980,7 +980,7 @@
 
             try {
                 if (authMode === 'signup') {
-                    const { data, error } = await supabase.auth.signUp({
+                    const { data, error } = await supabaseClient.auth.signUp({
                         email,
                         password
                     });
@@ -996,7 +996,7 @@
                         closeAuthModal();
                     }
                 } else {
-                    const { data, error } = await supabase.auth.signInWithPassword({
+                    const { data, error } = await supabaseClient.auth.signInWithPassword({
                         email,
                         password
                     });
@@ -1018,7 +1018,7 @@
 
         async function signOut() {
             try {
-                const { error } = await supabase.auth.signOut();
+                const { error } = await supabaseClient.auth.signOut();
                 if (error) throw error;
 
                 showNotification('Logged out successfully');
@@ -1032,7 +1032,7 @@
         // Load prompts from Supabase
         async function loadPrompts() {
             try {
-                const { data, error } = await supabase
+                const { data, error } = await supabaseClient
                     .from('prompts')
                     .select('*')
                     .order('created_at', { ascending: false });
@@ -1237,18 +1237,18 @@
 
             try {
                 if (editingId) {
-                    const { error } = await supabase
+                    const { error } = await supabaseClient
                         .from('prompts')
                         .update(promptData)
                         .eq('id', editingId);
-                    
+
                     if (error) throw error;
                     showNotification('Prompt updated');
                 } else {
-                    const { error } = await supabase
+                    const { error } = await supabaseClient
                         .from('prompts')
                         .insert([promptData]);
-                    
+
                     if (error) throw error;
                     showNotification('Prompt added');
                 }
@@ -1284,7 +1284,7 @@
             if (!confirm('Delete this prompt?')) return;
 
             try {
-                const { error } = await supabase
+                const { error } = await supabaseClient
                     .from('prompts')
                     .delete()
                     .eq('id', id);
