@@ -622,6 +622,114 @@
             transform: translateY(0);
         }
 
+        /* Loading States */
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .skeleton {
+            background: linear-gradient(
+                90deg,
+                var(--surface) 0%,
+                var(--surface-hover) 20%,
+                rgba(88, 166, 255, 0.05) 40%,
+                var(--surface-hover) 60%,
+                var(--surface) 100%
+            );
+            background-size: 200% 100%;
+            animation: shimmer 1.5s ease-in-out infinite;
+            border-radius: 6px;
+        }
+
+        .skeleton-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: var(--sp-xl);
+            display: flex;
+            flex-direction: column;
+            gap: var(--sp-lg);
+        }
+
+        .skeleton-title {
+            height: 1.5rem;
+            width: 60%;
+            margin-bottom: var(--sp-sm);
+        }
+
+        .skeleton-meta {
+            height: 0.875rem;
+            width: 35%;
+        }
+
+        .skeleton-description {
+            height: 1rem;
+            width: 85%;
+        }
+
+        .skeleton-tags {
+            display: flex;
+            gap: var(--sp-sm);
+        }
+
+        .skeleton-tag {
+            height: 1.5rem;
+            width: 4rem;
+            border-radius: 6px;
+        }
+
+        .skeleton-body {
+            height: 120px;
+            width: 100%;
+            border-radius: 8px;
+        }
+
+        /* Save button loading state */
+        .btn-loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 1rem;
+            height: 1rem;
+            top: 50%;
+            left: 50%;
+            margin-left: -0.5rem;
+            margin-top: -0.5rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .btn-saving-text {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--sp-sm);
+        }
+
+        /* Delete loading state */
+        .prompt-card.deleting {
+            opacity: 0.5;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             body {
@@ -1029,8 +1137,39 @@
             }
         }
 
+        // Show skeleton loading cards
+        function showSkeletonCards(count = 4) {
+            const grid = document.getElementById('promptsGrid');
+            let skeletonHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                skeletonHTML += `
+                    <div class="skeleton-card">
+                        <div class="prompt-header">
+                            <div style="flex: 1;">
+                                <div class="skeleton skeleton-title"></div>
+                                <div class="skeleton skeleton-meta"></div>
+                            </div>
+                        </div>
+                        <div class="skeleton skeleton-description"></div>
+                        <div class="skeleton-tags">
+                            <div class="skeleton skeleton-tag"></div>
+                            <div class="skeleton skeleton-tag" style="width: 5rem;"></div>
+                            <div class="skeleton skeleton-tag" style="width: 3.5rem;"></div>
+                        </div>
+                        <div class="skeleton skeleton-body"></div>
+                    </div>
+                `;
+            }
+
+            grid.innerHTML = skeletonHTML;
+        }
+
         // Load prompts from Supabase
         async function loadPrompts() {
+            // Show skeleton cards while loading
+            showSkeletonCards(4);
+
             try {
                 const { data, error } = await supabaseClient
                     .from('prompts')
@@ -1038,7 +1177,7 @@
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
-                
+
                 prompts = data || [];
                 renderPrompts();
                 updateTagFilters();
@@ -1046,6 +1185,8 @@
             } catch (error) {
                 console.error('Error loading prompts:', error);
                 showNotification('Error loading prompts');
+                // Clear skeleton cards on error
+                renderPrompts();
             }
         }
 
@@ -1080,7 +1221,7 @@
             }
 
             grid.innerHTML = filtered.map(p => `
-                <div class="prompt-card" onclick="viewPrompt('${p.id}')">
+                <div class="prompt-card" data-id="${p.id}" onclick="viewPrompt('${p.id}')">
                     <div class="prompt-header">
                         <div style="flex: 1;">
                             <div class="prompt-title">${escapeHtml(p.title)}</div>
@@ -1226,6 +1367,13 @@
                 return;
             }
 
+            const saveBtn = document.getElementById('saveBtn');
+            const originalText = saveBtn.textContent;
+
+            // Show saving state
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="btn-saving-text"><span class="btn-loading" style="position: relative; width: 1rem; height: 1rem; display: inline-block;"></span> Saving...</span>';
+
             const promptData = {
                 title: document.getElementById('promptTitle').value,
                 description: document.getElementById('promptDescription').value,
@@ -1258,6 +1406,10 @@
             } catch (error) {
                 console.error('Error saving prompt:', error);
                 showNotification('Error saving prompt');
+            } finally {
+                // Restore button state
+                saveBtn.disabled = false;
+                saveBtn.textContent = originalText;
             }
         }
 
@@ -1283,6 +1435,12 @@
         async function deletePrompt(id) {
             if (!confirm('Delete this prompt?')) return;
 
+            // Find and dim the card being deleted
+            const cardElement = document.querySelector(`.prompt-card[data-id="${id}"]`);
+            if (cardElement) {
+                cardElement.classList.add('deleting');
+            }
+
             try {
                 const { error } = await supabaseClient
                     .from('prompts')
@@ -1290,12 +1448,16 @@
                     .eq('id', id);
 
                 if (error) throw error;
-                
+
                 showNotification('Prompt deleted');
                 await loadPrompts();
             } catch (error) {
                 console.error('Error deleting prompt:', error);
                 showNotification('Error deleting prompt');
+                // Remove deleting state on error
+                if (cardElement) {
+                    cardElement.classList.remove('deleting');
+                }
             }
         }
 
