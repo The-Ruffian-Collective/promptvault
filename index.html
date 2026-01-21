@@ -667,6 +667,65 @@
             border-radius: 3px;
         }
 
+        /* Tag autocomplete */
+        .tag-input-container {
+            position: relative;
+            flex: 1;
+        }
+
+        .tag-autocomplete {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: var(--sp-xs);
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            box-shadow: var(--shadow-md);
+            display: none;
+        }
+
+        .tag-autocomplete.visible {
+            display: block;
+            animation: fadeIn 0.15s ease;
+        }
+
+        .tag-suggestion {
+            padding: var(--sp-sm) var(--sp-lg);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: var(--text);
+            transition: all 0.1s ease;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tag-suggestion:last-child {
+            border-bottom: none;
+        }
+
+        .tag-suggestion:hover,
+        .tag-suggestion.highlighted {
+            background: var(--surface-hover);
+            color: var(--accent);
+        }
+
+        .tag-suggestion.highlighted {
+            background: var(--surface-hover);
+            color: var(--accent);
+        }
+
+        .tag-autocomplete-empty {
+            padding: var(--sp-md) var(--sp-lg);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-style: italic;
+        }
+
         /* Notification */
         .notification {
             position: fixed;
@@ -965,7 +1024,10 @@
                 <div class="form-group">
                     <label>Tags</label>
                     <div class="tag-input-wrapper">
-                        <input type="text" id="tagInput" placeholder="Add tag...">
+                        <div class="tag-input-container">
+                            <input type="text" id="tagInput" placeholder="Add tag..." autocomplete="off">
+                            <div class="tag-autocomplete" id="tagAutocomplete"></div>
+                        </div>
                         <button type="button" class="secondary" onclick="addTag()">Add</button>
                     </div>
                     <div class="current-tags" id="currentTags"></div>
@@ -1419,6 +1481,7 @@
 
         function closeModal() {
             document.getElementById('promptModal').classList.remove('active');
+            hideTagAutocomplete();
         }
 
         function closeViewModal() {
@@ -1496,6 +1559,133 @@
                     <button onclick="removeTag('${escapeHtml(tag)}')">×</button>
                 </span>
             `).join('');
+
+            // Refresh autocomplete if tag input is focused
+            const tagInputEl = document.getElementById('tagInput');
+            if (document.activeElement === tagInputEl) {
+                showTagAutocomplete();
+            }
+        }
+
+        // Tag autocomplete
+        let highlightedSuggestionIndex = -1;
+
+        function getAllUniqueTags() {
+            const allTags = new Set();
+            prompts.forEach(p => {
+                if (p.tags) p.tags.forEach(tag => allTags.add(tag));
+            });
+            return Array.from(allTags).sort();
+        }
+
+        function getFilteredTagSuggestions(inputValue) {
+            const allTags = getAllUniqueTags();
+            const searchTerm = inputValue.toLowerCase().trim();
+
+            return allTags.filter(tag => {
+                // Exclude tags already added to current prompt
+                if (currentTags.includes(tag)) return false;
+                // If no search term, show all available tags
+                if (!searchTerm) return true;
+                // Case-insensitive matching
+                return tag.toLowerCase().includes(searchTerm);
+            });
+        }
+
+        function renderTagSuggestions(suggestions) {
+            const autocomplete = document.getElementById('tagAutocomplete');
+
+            if (suggestions.length === 0) {
+                autocomplete.classList.remove('visible');
+                return;
+            }
+
+            autocomplete.innerHTML = suggestions.map((tag, index) => `
+                <div class="tag-suggestion${index === highlightedSuggestionIndex ? ' highlighted' : ''}"
+                     data-index="${index}"
+                     data-tag="${escapeHtml(tag)}"
+                     onmousedown="selectTagSuggestion('${escapeHtml(tag)}')"
+                     onmouseenter="highlightSuggestion(${index})">
+                    ${escapeHtml(tag)}
+                </div>
+            `).join('');
+
+            autocomplete.classList.add('visible');
+        }
+
+        function showTagAutocomplete() {
+            const input = document.getElementById('tagInput');
+            const suggestions = getFilteredTagSuggestions(input.value);
+            highlightedSuggestionIndex = -1;
+            renderTagSuggestions(suggestions);
+        }
+
+        function hideTagAutocomplete() {
+            const autocomplete = document.getElementById('tagAutocomplete');
+            autocomplete.classList.remove('visible');
+            highlightedSuggestionIndex = -1;
+        }
+
+        function selectTagSuggestion(tag) {
+            if (tag && !currentTags.includes(tag)) {
+                currentTags.push(tag);
+                renderCurrentTags();
+            }
+            const input = document.getElementById('tagInput');
+            input.value = '';
+            hideTagAutocomplete();
+            input.focus();
+        }
+
+        function highlightSuggestion(index) {
+            highlightedSuggestionIndex = index;
+            const suggestions = document.querySelectorAll('.tag-suggestion');
+            suggestions.forEach((el, i) => {
+                el.classList.toggle('highlighted', i === index);
+            });
+        }
+
+        function navigateTagSuggestions(direction) {
+            const autocomplete = document.getElementById('tagAutocomplete');
+            if (!autocomplete.classList.contains('visible')) return false;
+
+            const suggestions = autocomplete.querySelectorAll('.tag-suggestion');
+            if (suggestions.length === 0) return false;
+
+            if (direction === 'down') {
+                highlightedSuggestionIndex = highlightedSuggestionIndex < suggestions.length - 1
+                    ? highlightedSuggestionIndex + 1
+                    : 0;
+            } else if (direction === 'up') {
+                highlightedSuggestionIndex = highlightedSuggestionIndex > 0
+                    ? highlightedSuggestionIndex - 1
+                    : suggestions.length - 1;
+            }
+
+            suggestions.forEach((el, i) => {
+                el.classList.toggle('highlighted', i === highlightedSuggestionIndex);
+            });
+
+            // Scroll highlighted item into view
+            const highlighted = suggestions[highlightedSuggestionIndex];
+            if (highlighted) {
+                highlighted.scrollIntoView({ block: 'nearest' });
+            }
+
+            return true;
+        }
+
+        function selectHighlightedSuggestion() {
+            if (highlightedSuggestionIndex < 0) return false;
+
+            const autocomplete = document.getElementById('tagAutocomplete');
+            const highlighted = autocomplete.querySelector('.tag-suggestion.highlighted');
+            if (highlighted) {
+                const tag = highlighted.dataset.tag;
+                selectTagSuggestion(tag);
+                return true;
+            }
+            return false;
         }
 
         // Save prompt
@@ -1677,10 +1867,57 @@
             saveSortPreference(e.target.value);
             renderPrompts();
         });
-        document.getElementById('tagInput').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        // Tag input autocomplete event listeners
+        const tagInput = document.getElementById('tagInput');
+
+        tagInput.addEventListener('focus', () => {
+            showTagAutocomplete();
+        });
+
+        tagInput.addEventListener('blur', (e) => {
+            // Delay hiding to allow click on suggestion
+            setTimeout(() => {
+                hideTagAutocomplete();
+            }, 150);
+        });
+
+        tagInput.addEventListener('input', () => {
+            showTagAutocomplete();
+        });
+
+        tagInput.addEventListener('keydown', (e) => {
+            const autocomplete = document.getElementById('tagAutocomplete');
+            const isVisible = autocomplete.classList.contains('visible');
+
+            if (e.key === 'ArrowDown') {
+                if (isVisible) {
+                    e.preventDefault();
+                    navigateTagSuggestions('down');
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (isVisible) {
+                    e.preventDefault();
+                    navigateTagSuggestions('up');
+                }
+            } else if (e.key === 'Enter') {
                 e.preventDefault();
-                addTag();
+                // If a suggestion is highlighted, select it; otherwise add typed tag
+                if (isVisible && highlightedSuggestionIndex >= 0) {
+                    selectHighlightedSuggestion();
+                } else {
+                    addTag();
+                }
+            } else if (e.key === 'Escape') {
+                if (isVisible) {
+                    e.preventDefault();
+                    hideTagAutocomplete();
+                }
+            } else if (e.key === 'Tab') {
+                // If a suggestion is highlighted, select it on Tab
+                if (isVisible && highlightedSuggestionIndex >= 0) {
+                    e.preventDefault();
+                    selectHighlightedSuggestion();
+                }
             }
         });
 
