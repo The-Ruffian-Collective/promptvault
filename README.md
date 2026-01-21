@@ -37,6 +37,9 @@ Prompt Vault is a modern prompt management tool that lets you:
 ### 🔍 Search & Filter
 - **Text Search** - Find prompts by searching title, description, or content
 - **Category Filter** - Show only prompts from a selected category
+- **Prompt Sorting** - Sort by newest first, oldest first, A-Z, or Z-A (preference saved)
+- **Tag Autocomplete** - Get smart suggestions as you type tags with keyboard navigation
+- **Search Clear Button** - Quickly clear search with one click
 - **Combined Filters** - Use search + category + tags together for precise results
 - **Real-time Results** - See filtered results instantly as you type
 
@@ -144,7 +147,7 @@ CREATE TRIGGER update_prompts_updated_at BEFORE UPDATE ON prompts
 
 2. Open `index.html` with a text editor
 
-3. Find the Supabase configuration section (around line 839-840):
+3. Find the Supabase configuration section (around line 1097-1098):
    ```javascript
    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
@@ -197,9 +200,16 @@ open index.html
 ### Searching & Filtering
 
 **Text Search:**
-- Type in the "Search prompts..." box
+- Type in the "Search prompts..." box (or press **Cmd/Ctrl+K** to jump to search)
 - Searches across title, description, and prompt content
 - Results update in real-time
+- Click the **×** button to clear search instantly, or press **Escape** when focused
+
+**Sorting:**
+- Use the "Sort by" dropdown next to the category filter
+- Choose: Newest first, Oldest first, A-Z, or Z-A
+- Your preference is saved automatically in browser storage
+- Sorting applies to all filtered results
 
 **Category Filter:**
 - Use the dropdown next to the search box
@@ -207,11 +217,18 @@ open index.html
 - Select "All Categories" to see everything
 
 **Tag Filter:**
-- Click any tag button below the controls
+- Click any tag button below the controls to add a filter
 - Tag becomes highlighted/active
-- Only prompts with that tag are shown
+- Shows only prompts with that tag
 - **Click multiple tags** to show only prompts with ALL selected tags
 - Click a highlighted tag again to deselect it
+
+**Tag Autocomplete (When Adding Tags):**
+- When adding tags to a prompt, type to see suggestions
+- Arrow keys (↑↓) navigate suggestions
+- Press **Enter** or **Tab** to select a suggestion
+- Press **Escape** to close the dropdown
+- Suggests tags from all your existing prompts
 
 **Combining Filters:**
 - Use search, category, and tags together
@@ -305,9 +322,9 @@ promptvault/
 | Section | Lines | Purpose |
 |---------|-------|---------|
 | **Head & Meta** | 1-8 | Page title, viewport, Supabase SDK |
-| **CSS Styles** | 9-715 | Complete styling with CSS custom properties |
-| **HTML Structure** | 717-835 | Page layout and modal definitions |
-| **JavaScript** | 837-1338 | App logic, auth, and database operations |
+| **CSS Styles** | 9-948 | Complete styling with CSS custom properties |
+| **HTML Structure** | 951-1094 | Page layout and modal definitions |
+| **JavaScript** | 1095-1953 | App logic, auth, and database operations |
 
 ### Technology Stack
 
@@ -473,6 +490,10 @@ deletePrompt() → Confirm with user
 - Full authentication (login, signup, logout)
 - Complete CRUD operations (create, read, update, delete)
 - Multi-filter search system (text, category, tags)
+- Prompt sorting with multiple options (newest, oldest, A-Z, Z-A)
+- Sort preference persistence via localStorage
+- Search clear button for quick clearing
+- Tag autocomplete with keyboard navigation
 - Tag management and filtering
 - Category organization
 - Modal-based UI for all operations
@@ -484,6 +505,7 @@ deletePrompt() → Confirm with user
 - Row-level security for user data isolation
 - Real-time data synchronization
 - User account management
+- Keyboard shortcuts (Cmd/Ctrl+K for search)
 
 ### 🔄 Future Enhancements
 
@@ -493,11 +515,11 @@ deletePrompt() → Confirm with user
 - Prompt templates with variables
 - Sharing capabilities (generate shareable links)
 - Light/dark mode toggle
-- Keyboard shortcuts for power users
 - Prompt versioning and history
 - Collections/folders for grouping
 - Advanced search (regex, fuzzy matching)
 - Collaborative editing (team prompts)
+- Bulk operations (delete multiple, apply tags)
 
 ## Development
 
@@ -587,11 +609,25 @@ MIT - Use freely for personal and commercial projects.
 
 ---
 
-**Last Updated:** December 2024
-**Version:** 2.0.0
-**Status:** Authentication Added ✅
+**Last Updated:** January 2026
+**Version:** 2.2.0
+**Status:** All Core Features Complete ✅
 
 ## Changelog
+
+### v2.2.0 - UX Enhancements
+- ✅ Added prompt sorting (newest, oldest, A-Z, Z-A)
+- ✅ Sort preference persistence via localStorage
+- ✅ Search clear button for quick clearing
+- ✅ Tag autocomplete with dropdown suggestions
+- ✅ Keyboard navigation for autocomplete (arrow keys, Enter, Tab, Escape)
+- ✅ Keyboard shortcut for search (Cmd/Ctrl+K)
+- ✅ Improved search UX with clear button visibility
+
+### v2.1.0 - Enhancement Updates
+- ✅ Improved tag filtering UI
+- ✅ Enhanced tag management in prompt modal
+- ✅ Better keyboard support throughout app
 
 ### v2.0.0 - Authentication Update
 - ✅ Added Supabase Auth (email/password signup and login)
