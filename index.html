@@ -490,6 +490,34 @@
             }
         }
 
+        /* Confirmation Modal */
+        .confirm-modal .modal-content {
+            max-width: 400px;
+            padding: var(--sp-xl);
+        }
+
+        .confirm-modal .modal-header {
+            margin-bottom: var(--sp-lg);
+            padding-bottom: var(--sp-md);
+        }
+
+        .confirm-modal .modal-header h2 {
+            font-size: 1.25rem;
+        }
+
+        .confirm-message {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: var(--sp-xl);
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: var(--sp-md);
+            justify-content: flex-end;
+        }
+
         .modal-header {
             display: flex;
             justify-content: space-between;
@@ -940,6 +968,20 @@
         </div>
     </div>
 
+    <div class="modal confirm-modal" id="confirmModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="confirmTitle">Confirm</h2>
+                <button class="close-btn" onclick="closeConfirmModal(false)">×</button>
+            </div>
+            <p class="confirm-message" id="confirmMessage">Are you sure?</p>
+            <div class="confirm-actions">
+                <button class="secondary" onclick="closeConfirmModal(false)">Cancel</button>
+                <button class="danger" id="confirmDeleteBtn" onclick="closeConfirmModal(true)">Delete</button>
+            </div>
+        </div>
+    </div>
+
     <div class="notification" id="notification"></div>
 
     <script>
@@ -1305,6 +1347,26 @@
             document.getElementById('viewModal').classList.remove('active');
         }
 
+        // Confirmation modal
+        let confirmModalResolve = null;
+
+        function showConfirmModal(title, message) {
+            return new Promise((resolve) => {
+                confirmModalResolve = resolve;
+                document.getElementById('confirmTitle').textContent = title;
+                document.getElementById('confirmMessage').textContent = message;
+                document.getElementById('confirmModal').classList.add('active');
+            });
+        }
+
+        function closeConfirmModal(confirmed) {
+            document.getElementById('confirmModal').classList.remove('active');
+            if (confirmModalResolve) {
+                confirmModalResolve(confirmed);
+                confirmModalResolve = null;
+            }
+        }
+
         // View prompt
         function viewPrompt(id) {
             const prompt = prompts.find(p => p.id === id);
@@ -1433,7 +1495,8 @@
 
         // Delete prompt
         async function deletePrompt(id) {
-            if (!confirm('Delete this prompt?')) return;
+            const confirmed = await showConfirmModal('Delete Prompt', 'Are you sure you want to delete this prompt? This action cannot be undone.');
+            if (!confirmed) return;
 
             // Find and dim the card being deleted
             const cardElement = document.querySelector(`.prompt-card[data-id="${id}"]`);
@@ -1507,6 +1570,9 @@
         });
         document.getElementById('authModal').addEventListener('click', (e) => {
             if (e.target.id === 'authModal' && currentUser) closeAuthModal();
+        });
+        document.getElementById('confirmModal').addEventListener('click', (e) => {
+            if (e.target.id === 'confirmModal') closeConfirmModal(false);
         });
 
         // Initialize app
