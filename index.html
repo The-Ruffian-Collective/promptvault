@@ -99,7 +99,7 @@
         /* Controls section */
         .controls {
             display: grid;
-            grid-template-columns: 1fr auto auto;
+            grid-template-columns: 1fr auto auto auto;
             gap: var(--sp-lg);
             margin-bottom: var(--sp-2xl);
             align-items: center;
@@ -915,6 +915,12 @@
             <option value="social">Social Media</option>
             <option value="other">Other</option>
         </select>
+        <select id="sortFilter">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="a-z">A-Z</option>
+            <option value="z-a">Z-A</option>
+        </select>
         <button onclick="openAddModal()">+ Add Prompt</button>
     </div>
 
@@ -1036,9 +1042,25 @@
         let activeTagFilters = new Set();
         let currentUser = null;
         let authMode = 'login'; // 'login' or 'signup'
+        let currentSort = localStorage.getItem('promptVaultSort') || 'newest';
+
+        // Initialize sort dropdown from localStorage
+        function initSortFilter() {
+            const sortFilter = document.getElementById('sortFilter');
+            sortFilter.value = currentSort;
+        }
+
+        // Save sort preference to localStorage
+        function saveSortPreference(sortValue) {
+            currentSort = sortValue;
+            localStorage.setItem('promptVaultSort', sortValue);
+        }
 
         // Initialize
         async function init() {
+            // Initialize sort filter from localStorage
+            initSortFilter();
+
             try {
                 if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
                     showNotification('⚠️ Configure Supabase credentials first');
@@ -1277,8 +1299,24 @@
             const grid = document.getElementById('promptsGrid');
             const searchTerm = document.getElementById('searchInput').value.toLowerCase();
             const categoryFilter = document.getElementById('categoryFilter').value;
+            const sortValue = document.getElementById('sortFilter').value;
 
-            let filtered = prompts.filter(p => {
+            // Sort prompts first
+            let sorted = [...prompts].sort((a, b) => {
+                switch (sortValue) {
+                    case 'oldest':
+                        return new Date(a.created_at) - new Date(b.created_at);
+                    case 'a-z':
+                        return a.title.localeCompare(b.title);
+                    case 'z-a':
+                        return b.title.localeCompare(a.title);
+                    case 'newest':
+                    default:
+                        return new Date(b.created_at) - new Date(a.created_at);
+                }
+            });
+
+            let filtered = sorted.filter(p => {
                 const matchesSearch = !searchTerm || 
                     p.title.toLowerCase().includes(searchTerm) ||
                     p.description?.toLowerCase().includes(searchTerm) ||
@@ -1635,6 +1673,10 @@
         searchClearBtn.addEventListener('click', clearSearch);
 
         document.getElementById('categoryFilter').addEventListener('change', renderPrompts);
+        document.getElementById('sortFilter').addEventListener('change', (e) => {
+            saveSortPreference(e.target.value);
+            renderPrompts();
+        });
         document.getElementById('tagInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
