@@ -109,6 +109,45 @@
             position: relative;
         }
 
+        .search-box input[type="text"] {
+            padding-right: 2.5rem;
+        }
+
+        .search-clear-btn {
+            position: absolute;
+            right: var(--sp-md);
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.25rem;
+            cursor: pointer;
+            padding: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            line-height: 1;
+        }
+
+        .search-clear-btn:hover {
+            color: var(--text);
+            background: var(--surface-hover);
+        }
+
+        .search-clear-btn.visible {
+            display: flex;
+        }
+
+        .search-box.has-value input[type="text"] {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.15), 0 0 12px rgba(88, 166, 255, 0.1);
+        }
+
         input[type="text"],
         select,
         textarea {
@@ -864,8 +903,9 @@
     </header>
 
     <div class="controls">
-        <div class="search-box">
-            <input type="text" id="searchInput" placeholder="Search prompts...">
+        <div class="search-box" id="searchBox">
+            <input type="text" id="searchInput" placeholder="Search prompts... (⌘K)">
+            <button type="button" class="search-clear-btn" id="searchClearBtn" title="Clear search">×</button>
         </div>
         <select id="categoryFilter">
             <option value="">All Categories</option>
@@ -1551,13 +1591,67 @@
             return div.innerHTML;
         }
 
+        // Debounce utility
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Search input handling with debounce
+        const searchInput = document.getElementById('searchInput');
+        const searchBox = document.getElementById('searchBox');
+        const searchClearBtn = document.getElementById('searchClearBtn');
+
+        function updateSearchState() {
+            const hasValue = searchInput.value.length > 0;
+            searchBox.classList.toggle('has-value', hasValue);
+            searchClearBtn.classList.toggle('visible', hasValue);
+        }
+
+        function clearSearch() {
+            searchInput.value = '';
+            updateSearchState();
+            renderPrompts();
+            searchInput.focus();
+        }
+
+        const debouncedRender = debounce(() => {
+            renderPrompts();
+        }, 300);
+
         // Event listeners
-        document.getElementById('searchInput').addEventListener('input', renderPrompts);
+        searchInput.addEventListener('input', () => {
+            updateSearchState();
+            debouncedRender();
+        });
+
+        searchClearBtn.addEventListener('click', clearSearch);
+
         document.getElementById('categoryFilter').addEventListener('change', renderPrompts);
         document.getElementById('tagInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 addTag();
+            }
+        });
+
+        // Keyboard shortcut: Cmd/Ctrl+K to focus search
+        document.addEventListener('keydown', (e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                searchInput.focus();
+                searchInput.select();
+            }
+            // Escape to clear search when input is focused
+            if (e.key === 'Escape' && document.activeElement === searchInput && searchInput.value) {
+                clearSearch();
             }
         });
 
